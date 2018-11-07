@@ -6,31 +6,39 @@ import com.badlogic.gdx.graphics.g2d.*;
 import com.badlogic.gdx.input.GestureDetector;
 import com.badlogic.gdx.input.GestureDetector.GestureListener;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.maps.tiled.*;
 import com.badlogic.gdx.utils.*;
+import com.badlogic.gdx.maps.tiled.renderers.*;
 
 public class MyGdxGame implements ApplicationListener, GestureListener
 {
-	private Texture texture;
 	private SpriteBatch batch;
 	private Sprite sprite;
 	private GameController gameController = new GameController();
 	private OrthographicCamera camera;
 	private Color background = Color.BLACK;
-	private float scaling = 0.5f;
+	private float currentZoom = 1f;
+	private TiledMapRenderer tiledMapRenderer;
+	private TiledMap tiledMap;
 	
 	@Override
 	public void create()
 	{
-		camera = new OrthographicCamera(1280, 720);
+		float w = Gdx.graphics.getWidth();
+		float h = Gdx.graphics.getHeight();
+		camera = new OrthographicCamera();
+		camera.setToOrtho(false, w, h);
+		camera.update();
 		
-		texture = new Texture(Gdx.files.internal("data/Sample.png"));
-		sprite = new Sprite(texture);
-
-		sprite.setOrigin(0,0);
-
-		sprite.setPosition(-sprite.getWidth()/2,-sprite.getHeight()/2);
 		batch = new SpriteBatch();
 		gameController.init();
+		tiledMap = new TmxMapLoader().load("data/main_map.tmx");
+		tiledMapRenderer = new OrthogonalTiledMapRenderer(tiledMap);
+		
+		int mapWidth = tiledMap.getProperties().get("width",Integer.class)/2;
+		int mapHeight = tiledMap.getProperties().get("height",Integer.class)/2;
+	
+		
 		
 		GestureDetector gd = new GestureDetector(this);
         Gdx.input.setInputProcessor(gd);
@@ -41,11 +49,16 @@ public class MyGdxGame implements ApplicationListener, GestureListener
 	{
 	    Gdx.gl.glClearColor(background.r, background.g, background.b, 1);
 	    Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-	
+
+		camera.update();
+		tiledMapRenderer.setView(camera);
+		tiledMapRenderer.render();
+		
 		batch.setProjectionMatrix(camera.combined);
 		batch.begin();
-		sprite.draw(batch);
+		
 		gameController.render(batch);
+		
 		batch.end();
 	}
 
@@ -93,25 +106,28 @@ public class MyGdxGame implements ApplicationListener, GestureListener
 
     @Override
     public boolean pan(float x, float y, float deltaX, float deltaY) {
-		camera.translate(-deltaX * scaling, deltaY * scaling);
+		camera.translate(-deltaX * currentZoom, deltaY * currentZoom);
 		camera.update();
-        return true;
+        return false;
     }
 
 	@Override
 	public boolean panStop(float p1, float p2, int p3, int p4)
 	{
-		return true;
+		currentZoom = camera.zoom;
+		return false;
 	}
 
     @Override
     public boolean zoom(float initialDistance, float distance) {
-        return false;
+		camera.zoom = (initialDistance /distance) * currentZoom;
+		camera.update();
+        return true;
     }
 
     @Override
     public boolean pinch(Vector2 initialPointer1, Vector2 initialPointer2,
 						 Vector2 pointer1, Vector2 pointer2) {
-        return true;
+        return false;
     }
 }
